@@ -2,6 +2,7 @@ import logging
 import asyncio
 import httpx
 from sentence_transformers import CrossEncoder
+from config import RERANKER_MAX_BATCH_SIZE
 
 _logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class DocumentReranker:
         return self._reranker
 
     async def rerank(self, query: str, documents: list[str], top_n: int = 20):
-        """Routes to an external API if configured, otherwise runs local CPU inference."""
+        """Routes to an external API with payload batching, otherwise runs local CPU inference."""
 
         # External routing
         if self.base_url:
@@ -40,37 +41,53 @@ class DocumentReranker:
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
 
-            payload = {
-                "model": self.model_name,
-                "query": query,
-                "documents": documents,
-                "top_n": top_n,
-            }
+            all_results = []
+            batch_size = RERANKER_MAX_BATCH_SIZE
 
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 _logger.info(
-                    f"Sending rerank request to {self.base_url} for {len(documents)} docs"
+                    f"Sending batched rerank requests to {self.base_url} for {len(documents)} docs"
                 )
-                resp = await client.post(
-                    f"{self.base_url.rstrip('/')}/rerank", json=payload, headers=headers
-                )
-                resp.raise_for_status()
-                data = resp.json()
 
-                if "results" in data:
-                    results = data["results"]
-                    _logger.info(
-                        f"[rerank-external] top: "
-                        f"{[round(r.get('relevance_score', 0), 3) for r in results[:5]]}"
+                # Slice the documents into batches of 50
+                for i in range(0, len(documents), batch_size):
+                    batch_docs = documents[i : i + batch_size]
+                    payload = {
+                        "model": self.model_name,
+                        "query": query,
+                        "documents": batch_docs,
+                        "top_n": len(batch_docs),  # Scores sorted globally later
+                    }
+
+                    resp = await client.post(
+                        f"{self.base_url.rstrip('/')}/rerank",
+                        json=payload,
+                        headers=headers,
                     )
-                    return results
-                return []
+                    resp.raise_for_status()
+                    data = resp.json()
+
+                    if "results" in data:
+                        for r in data["results"]:
+                            # The API returns an index for the batch (0-49).
+                            # We must remap it to the global document index (e.g., 50-99).
+                            r["index"] = r["index"] + i
+                            all_results.append(r)
+
+            # Sort the combined results from all batches globally
+            all_results.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
+
+            results = all_results[:top_n]
+            _logger.info(
+                f"[rerank-external] top: "
+                f"{[round(r.get('relevance_score', 0), 3) for r in results[:5]]}"
+            )
+            return results
 
         # Local routing
         loop = asyncio.get_running_loop()
         pairs = [[query, doc] for doc in documents]
 
-        # Run the heavy computation in a background thread
         scores = await loop.run_in_executor(
             None, lambda: self.load().predict(pairs, show_progress_bar=False)
         )

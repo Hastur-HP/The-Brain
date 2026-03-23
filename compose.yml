@@ -28,6 +28,7 @@ services:
       # If not set, the default model inside container will be used
       #- RERANKER_BASE_URL=
       #- RERANKER_MODEL=
+      #- RERANKER_MAX_BATCH_SIZE=4
 
       # Model Settings & Tuning
       - LLM_NUM_CTX=32768

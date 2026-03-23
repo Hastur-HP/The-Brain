@@ -82,6 +82,11 @@ These are the variables you can set to control context size for example. You nee
 | CHUNK_SIZE         | 600     | The target number of tokens per document slice.        |
 | CHUNK_OVERLAP_SIZE | 100     | The number of tokens shared between sequential chunks. |
 
+**Reranker**
+
+| VARIABLE | EXAMPLE | INFO |
+| -------- | ------- | ---- |
+| RERANKER_MAX_BATCH_SIZE | 4 | The number of documents sent to an external reranker at once.|
 ## Storage
 All knowledge graph data is stored in two named volumes
 
