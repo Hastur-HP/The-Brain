@@ -32,6 +32,7 @@ EMBEDDING_MAX_ASYNC = int(os.getenv("EMBEDDING_MAX_ASYNC", "1"))
 EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "4096"))
 MAX_EMBED_TOKENS = int(os.getenv("MAX_EMBED_TOKENS", "8192"))
 RERANKER_MAX_BATCH_SIZE = int(os.getenv("RERANKER_MAX_BATCH_SIZE", 4))
+QUERY_TOP_K = int(os.getenv("QUERY_TOP_K", "15"))
 
 # Neo4j
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")

@@ -2,7 +2,7 @@ import logging
 import asyncio
 import httpx
 from sentence_transformers import CrossEncoder
-from config import RERANKER_MAX_BATCH_SIZE
+from backend.config import RERANKER_MAX_BATCH_SIZE
 
 _logger = logging.getLogger(__name__)
 

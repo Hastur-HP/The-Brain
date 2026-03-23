@@ -3,6 +3,7 @@ import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from backend.dependencies import neo4j_manager, state
+from backend.config import QUERY_TOP_K
 
 # Create the router instance
 router = APIRouter(tags=["Graph & Query"])
@@ -49,11 +50,13 @@ async def query(req: QueryRequest):
     if capture:
         for name in ["lightrag", "raganything"]:
             logging.getLogger(name).addHandler(capture)
-
     try:
-        answer = await state.rag.aquery(req.question, mode=req.mode, vlm_enhanced=False)
+        answer = await state.rag.aquery(
+            req.question, mode=req.mode, top_k=QUERY_TOP_K, vlm_enhanced=False
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
     finally:
         if capture:
             for name in ["lightrag", "raganything"]:
